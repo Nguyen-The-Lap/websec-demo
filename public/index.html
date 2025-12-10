@@ -1,84 +1,342 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>WebSec Demo</title>
+  <title>WebSec Demo — Enhanced</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Basic CSP: still allows inline script for demo; in production, prefer external script + strict CSP. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://localhost:3000; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
   <style>
-    body { font-family: system-ui, Arial; margin: 24px; max-width: 900px; }
-    input, button, textarea { font-size: 14px; padding: 8px; margin: 4px 0; width: 100%; }
+    :root { --muted:#666; --surface:#f8f9fb; --accent:#0366d6; --danger:#d64545; }
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 1000px; color:#111; background: #fff; }
+    header { display:flex; align-items:center; gap:16px; margin-bottom: 18px; }
+    h1 { margin:0; font-size:20px; }
+    p.lead { margin:0; color:var(--muted); font-size:14px; }
+    .card { background:var(--surface); padding:16px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,.04); }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    label { display:block; font-weight:600; margin-top:8px; }
+    input, button, textarea, select { font-size:14px; padding:8px; margin-top:6px; width:100%; box-sizing:border-box; border:1px solid #ddd; border-radius:6px; }
     .row { display:flex; gap:12px; }
-    pre { background:#f5f5f5; padding:12px; overflow:auto; }
-    .two { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    button { cursor:pointer; background:var(--accent); color:white; border:none; }
+    button.ghost { background:transparent; color:var(--accent); border:1px solid #dbe9ff; }
+    pre, .result { background:#fff; padding:12px; border-radius:8px; border:1px solid #eee; max-height:240px; overflow:auto; white-space:pre-wrap; }
+    .muted { color:var(--muted); font-size:13px; }
+    .danger { color:var(--danger); font-weight:700; }
+    .controls { display:flex; gap:8px; align-items:center; margin-top:8px; }
+    .small { font-size:12px; padding:6px; }
+    footer { margin-top:28px; color:var(--muted); font-size:13px; }
+    .metrics { display:flex; gap:12px; margin-top:8px; flex-wrap:wrap; }
+    .metric { padding:8px; background:#fff; border-radius:8px; border:1px dashed #eee; font-size:13px; }
   </style>
 </head>
 <body>
-  <h1>Web Application Security Demo</h1>
-  <p>Use the forms below to test both <strong>vulnerable</strong> and <strong>secure</strong> endpoints.</p>
+  <header>
+    <div>
+      <h1>Web Application Security Demo — Enhanced</h1>
+      <div class="lead">Compare how a vulnerable endpoint reacts vs a secure one. Use only on services you control (localhost recommended).</div>
+    </div>
+  </header>
 
-  <div class="two">
+  <main class="card">
+    <div class="two" aria-live="polite">
+      <section>
+        <h2>Vulnerable Search (SQLi & Reflected XSS demo)</h2>
+        <form id="vulnForm" autocomplete="off" aria-describedby="vulnHelp">
+          <label for="vuln_q">q (try: <code>alice' OR '1'='1</code> or <code>&lt;script&gt;alert('xss')&lt;/script&gt;)</label>
+          <input id="vuln_q" name="q" placeholder="search term" />
+          <div class="controls">
+            <button id="vulnSearchBtn" class="small">Search VULN</button>
+            <button id="vulnRenderToggle" type="button" class="small ghost">Toggle Render Raw</button>
+            <div class="muted small">Rendering raw HTML is <span class="danger">unsafe</span>. Use only for demo.</div>
+          </div>
+        </form>
+        <div id="vulnRes" class="result" aria-live="polite"></div>
+        <div id="vulnHelp" class="muted">Vulnerable endpoint returns raw HTML; toggle "Render Raw" to allow direct insertion into the page for demonstration.</div>
+      </section>
+
+      <section>
+        <h2>Secure Search</h2>
+        <form id="secForm" autocomplete="off" aria-describedby="secHelp">
+          <label for="sec_q">q (same payloads)</label>
+          <input id="sec_q" name="q" />
+          <div class="controls">
+            <button id="secSearchBtn" class="small">Search SECURE</button>
+            <label class="muted small" style="margin-left:auto;">
+              <input id="clientSanitize" type="checkbox" checked /> Client-side sanitize (escape output)
+            </label>
+          </div>
+        </form>
+        <div id="secRes" class="result" aria-live="polite"></div>
+        <div id="secHelp" class="muted">Secure endpoint should return safe content and/or JSON; we escape output by default.</div>
+      </section>
+    </div>
+
+    <hr />
+
     <section>
-      <h2>Vulnerable Search (SQLi & Reflected XSS)</h2>
-      <form id="vulnForm">
-        <label>q (try: <code>alice' OR '1'='1</code> or <code>&lt;script&gt;alert('xss')&lt;/script&gt;</code>)</label>
-        <input id="vuln_q" name="q" placeholder="search term" />
-        <button type="submit">Search VULN</button>
+      <h3>Add user (secure)</h3>
+      <form id="addForm" class="row" style="gap:12px; grid-template-columns: 1fr 1fr;">
+        <div style="flex:1">
+          <label for="username">username (3-30 chars)</label>
+          <input id="username" name="username" minlength="3" maxlength="30" pattern="^[a-zA-Z0-9_.-]{3,30}$" required aria-describedby="userHelp" />
+          <div id="userHelp" class="muted">Allowed: letters, numbers, underscore, dot, hyphen.</div>
+        </div>
+        <div style="flex:1">
+          <label for="bio">bio (optional)</label>
+          <textarea id="bio" name="bio" rows="3" maxlength="1000" placeholder="Short bio (max 1000 chars)"></textarea>
+        </div>
       </form>
-      <div id="vulnRes"></div>
+      <div class="controls" style="margin-top:8px;">
+        <button id="addBtn">Add User</button>
+        <button id="addClear" class="ghost">Clear</button>
+      </div>
+      <div id="addRes" class="result" aria-live="polite"></div>
     </section>
 
+    <hr />
+
     <section>
-      <h2>Secure Search</h2>
-      <form id="secForm">
-        <label>q (try same payloads)</label>
-        <input id="sec_q" name="q" />
-        <button type="submit">Search SECURE</button>
-      </form>
-      <div id="secRes"></div>
+      <h3>Safe local burst simulator</h3>
+      <p class="muted">This is <strong>not</strong> a DDoS tool. It will only allow small bursts to <code>localhost</code> and will refuse external hosts. Use it to observe server rate-limiter behavior on a local test server.</p>
+
+      <div class="row" style="margin-top:8px;">
+        <input id="burstCount" type="number" min="1" max="20" value="8" />
+        <select id="burstTarget">
+          <option value="http://localhost:3000/vulnerable/search">http://localhost:3000/vulnerable/search</option>
+          <option value="http://localhost:3000/secure/search">http://localhost:3000/secure/search</option>
+        </select>
+        <button id="runBurst" class="small">Run Burst</button>
+      </div>
+
+      <div class="metrics" id="burstMetrics" aria-live="polite" style="margin-top:10px;"></div>
+      <pre id="burstLog" class="result" style="margin-top:8px;"></pre>
     </section>
-  </div>
 
-  <hr />
-  <h3>Add user (secure)</h3>
-  <form id="addForm">
-    <input id="username" placeholder="username (3-30 chars)" required />
-    <textarea id="bio" placeholder="bio"></textarea>
-    <button type="submit">Add User</button>
-  </form>
-  <div id="addRes"></div>
-
-  <hr />
-  <h3>Demo quick commands</h3>
-  <button id="runDdos">Simulate a DDoS (run local ddos_simulator.js separately)</button>
-  <p>Open browser console to see fetch results; server has rate limiter so only 10 requests per 10s will pass from same IP.</p>
+    <footer>
+      <div class="muted">Tip: run a local server with both <code>/vulnerable/*</code> and <code>/secure/*</code> endpoints. Secure endpoint should implement parameterized queries, output encoding and input validation server-side.</div>
+    </footer>
+  </main>
 
 <script>
+/*
+  Enhanced client-side script:
+  - sanitizes / escapes output for secure endpoint
+  - allows deliberate "render raw" opt-in for vulnerable demo
+  - uses AbortController for request timeouts
+  - validates add-user inputs before sending
+  - burst simulator enforces localhost-only target and small limits
+*/
+
+const DEFAULT_TIMEOUT = 7000; // ms
+function timeoutFetch(resource, opts = {}) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), opts.timeout || DEFAULT_TIMEOUT);
+  return fetch(resource, { ...opts, signal: controller.signal })
+    .finally(() => clearTimeout(id));
+}
+
+// Simple HTML escape for safe insertion into the DOM
+function escapeHTML(s) {
+  if (s == null) return '';
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+// Convenience: show JSON prettily or fallback string
+function prettyJSON(obj) {
+  try { return JSON.stringify(obj, null, 2); } catch (e) { return String(obj); }
+}
+
+/* ---------- Vulnerable form: by default we show escaped result.
+     The "Render Raw" toggle lets the user intentionally render raw HTML into the page
+     for educational purposes only (dangerous). */
+let vulnRenderRaw = false;
+document.getElementById('vulnRenderToggle').addEventListener('click', () => {
+  vulnRenderRaw = !vulnRenderRaw;
+  document.getElementById('vulnRenderToggle').innerText = vulnRenderRaw ? 'Raw Rendering: ON' : 'Toggle Render Raw';
+  document.getElementById('vulnRenderToggle').classList.toggle('danger', vulnRenderRaw);
+});
+
 document.getElementById('vulnForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const q = document.getElementById('vuln_q').value;
-  const res = await fetch('/vulnerable/search?q=' + encodeURIComponent(q));
-  const text = await res.text();
-  document.getElementById('vulnRes').innerHTML = text;
+  const url = '/vulnerable/search?q=' + encodeURIComponent(q);
+  const out = document.getElementById('vulnRes');
+  out.textContent = 'Loading...';
+  try {
+    const res = await timeoutFetch(url, { timeout: 5000 });
+    const text = await res.text();
+    // show status
+    if (vulnRenderRaw) {
+      // WARNING: inserting raw HTML is unsafe; user must opt-in to see vulnerability demonstration.
+      out.innerHTML = text;
+    } else {
+      // default: escape before inserting
+      out.textContent = text;
+    }
+  } catch (err) {
+    out.textContent = 'Request failed: ' + (err.name === 'AbortError' ? 'timeout' : err.message);
+  }
 });
+
+/* ---------- Secure search: always escape output on client side (server should also enforce) ---------- */
 document.getElementById('secForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const q = document.getElementById('sec_q').value;
-  const res = await fetch('/secure/search?q=' + encodeURIComponent(q));
-  const text = await res.text();
-  document.getElementById('secRes').innerHTML = text;
+  const sanitize = document.getElementById('clientSanitize').checked;
+  const url = '/secure/search?q=' + encodeURIComponent(q);
+  const out = document.getElementById('secRes');
+  out.textContent = 'Loading...';
+  try {
+    const res = await timeoutFetch(url, { timeout: 5000 });
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const json = await res.json();
+      out.textContent = prettyJSON(json);
+    } else {
+      const text = await res.text();
+      out.textContent = sanitize ? escapeHTML(text) : text;
+    }
+  } catch (err) {
+    out.textContent = 'Request failed: ' + (err.name === 'AbortError' ? 'timeout' : err.message);
+  }
 });
-document.getElementById('addForm').addEventListener('submit', async (e) => {
+
+/* ---------- Add user form: client validation + JSON POST with error handling ---------- */
+document.getElementById('addBtn').addEventListener('click', async (e) => {
   e.preventDefault();
-  const username = document.getElementById('username').value;
+  const out = document.getElementById('addRes');
+  out.textContent = '';
+  const username = document.getElementById('username').value.trim();
   const bio = document.getElementById('bio').value;
-  const res = await fetch('/secure/add-user', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, bio })
-  });
-  const json = await res.json();
-  document.getElementById('addRes').innerText = JSON.stringify(json, null, 2);
+
+  // client-side validation
+  const usernameRe = /^[a-zA-Z0-9_.-]{3,30}$/;
+  if (!usernameRe.test(username)) {
+    out.textContent = 'Invalid username. Use 3-30 characters: letters, numbers, underscore, dot, hyphen.';
+    return;
+  }
+  if (bio.length > 1000) {
+    out.textContent = 'Bio too long (max 1000 chars).';
+    return;
+  }
+
+  out.textContent = 'Sending...';
+  try {
+    const res = await timeoutFetch('/secure/add-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, bio }),
+      timeout: 7000
+    });
+    const ctype = res.headers.get('content-type') || '';
+    if (ctype.includes('application/json')) {
+      const json = await res.json();
+      out.textContent = prettyJSON(json);
+    } else {
+      const txt = await res.text();
+      out.textContent = txt;
+    }
+  } catch (err) {
+    out.textContent = 'Request failed: ' + (err.name === 'AbortError' ? 'timeout' : err.message);
+  }
 });
+
+document.getElementById('addClear').addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('username').value = '';
+  document.getElementById('bio').value = '';
+  document.getElementById('addRes').textContent = '';
+});
+
+/* ---------- Safe burst simulator (local-only, small bursts) ---------- */
+function isLocalUrl(u) {
+  try {
+    const parsed = new URL(u);
+    // ensure hostname is localhost or 127.0.0.1 or ::1 and scheme is http (for demo)
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1';
+  } catch (e) {
+    return false;
+  }
+}
+
+document.getElementById('runBurst').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const target = document.getElementById('burstTarget').value;
+  const count = Number(document.getElementById('burstCount').value) || 1;
+  const log = document.getElementById('burstLog');
+  const metricsEl = document.getElementById('burstMetrics');
+  log.textContent = '';
+  metricsEl.innerHTML = '';
+
+  if (!isLocalUrl(target)) {
+    log.textContent = 'Refusing to run burst: target must be localhost.';
+    return;
+  }
+  if (count < 1 || count > 20) {
+    log.textContent = 'Burst count must be between 1 and 20.';
+    return;
+  }
+
+  log.textContent = `Running burst: ${count} requests -> ${target}\n`;
+  const results = [];
+  const startAll = Date.now();
+
+  // small parallelism = 5 (to avoid uncontrolled flooding)
+  const concurrency = 5;
+  let idx = 0;
+  async function worker() {
+    while (true) {
+      const i = ++idx;
+      if (i > count) return;
+      const t0 = Date.now();
+      try {
+        const res = await timeoutFetch(target + '?q=burst+' + i, { timeout: 4000 });
+        const t = Date.now() - t0;
+        results.push({ i, ok: res.ok, status: res.status, time: t });
+        log.textContent += `#${i} ${res.status} ${t}ms\n`;
+      } catch (err) {
+        const t = Date.now() - t0;
+        results.push({ i, ok: false, status: err.name === 'AbortError' ? 'timeout' : err.message, time: t });
+        log.textContent += `#${i} ERROR ${err.name} ${t}ms\n`;
+      }
+    }
+  }
+
+  // spawn N workers
+  await Promise.all(Array.from({ length: concurrency }).map(() => worker()));
+  const duration = Date.now() - startAll;
+  const success = results.filter(r => r.ok).length;
+  const failed = results.length - success;
+
+  // show simple metrics
+  metricsEl.innerHTML = `
+    <div class="metric">Requests: ${results.length}</div>
+    <div class="metric">Success: ${success}</div>
+    <div class="metric">Failed: ${failed}</div>
+    <div class="metric">Duration: ${duration}ms</div>
+  `;
+});
+
+/* ---------- Accessibility / keyboard niceties ---------- */
+// Press Enter inside inputs to submit the nearest form
+document.querySelectorAll('input').forEach(inp => {
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const form = inp.closest('form');
+      if (form) {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type=submit], button:not([type])');
+        if (submitBtn) submitBtn.click();
+      }
+    }
+  });
+});
+
 </script>
 </body>
 </html>
