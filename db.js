@@ -14,7 +14,7 @@ function init() {
       )
     `);
 
-    // seed some users
+    // Seed users
     const stmt = db.prepare("INSERT OR IGNORE INTO users(username, bio) VALUES (?, ?)");
     stmt.run("alice", "I love cats.");
     stmt.run("bob", "Security enthusiast.");
