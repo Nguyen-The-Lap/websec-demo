@@ -26,7 +26,7 @@ function sendRequest(i) {
   console.log('Starting demo flood test...');
   for (let i=0;i<TOTAL;i++) {
     sendRequest(i+1);
-    // small spacing to mimic bursty traffic
+    // Small spacing to imitate bursty traffic
     await new Promise(r => setTimeout(r, Math.random()*150));
   }
 })();

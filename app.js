@@ -14,10 +14,10 @@ const PORT = process.env.PORT || 3000;
 // init DB
 dbLayer.init();
 
-app.use(helmet());                   // basic security headers
+app.use(helmet());                   // Basic security headers
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(xss());                      // basic XSS sanitization on inputs
+app.use(xss());                      // Basic XSS sanitization on inputs
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Simple WAF-like middleware for demo: block suspicious patterns
@@ -40,7 +40,7 @@ app.use((req, res, next) => {
 // Rate limiter (basic DDoS mitigation demo)
 const limiter = rateLimit({
   windowMs: 10 * 1000, // 10 second window
-  max: 10,             // limit each IP to 10 requests per windowMs
+  max: 10,             // Limit each IP to 10 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests — demo rate limit triggered." }
@@ -59,10 +59,10 @@ app.get('/vulnerable/search', [
   query('q').optional().isString().trim()
 ], (req, res) => {
   const q = req.query.q || '';
-  // intentionally using unsafe DB function to demonstrate SQLi
+  // Intentionally using unsafe DB function to demonstrate SQLi
   dbLayer.getUsersByNameUnsafe(q, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    // reflect raw user-provided string into HTML (vulnerable to XSS if not sanitized)
+    // Reflect raw user-provided string into HTML (vulnerable to XSS if not sanitized)
     let html = `<h2>VULNERABLE SEARCH results for: ${q}</h2><ul>`;
     rows.forEach(r => {
       html += `<li>${r.username}: ${r.bio}</li>`;
@@ -77,7 +77,7 @@ app.get('/vulnerable/search', [
 app.get('/secure/search', [
   query('q').optional().isString().trim().escape()  // express-validator escape to neutralize special chars in query string
 ], (req, res) => {
-  // note: xss-clean already sanitized input; we still use parameterized DB call
+  // Note: xss-clean already sanitized input; we still use parameterized DB call
   const q = req.query.q || '';
   dbLayer.getUsersByNameSafe(q, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -120,7 +120,7 @@ app.get('/info', (req, res) => {
   });
 });
 
-// start
+// Start
 app.listen(PORT, () => {
   console.log(`WebSec demo running at http://localhost:${PORT}`);
 });
